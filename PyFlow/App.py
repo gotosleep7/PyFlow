@@ -384,29 +384,18 @@ class PyFlow(QMainWindow):
             self.loadFromFile(fpath)
 
     def save(self, save_as=False):
-        if save_as:
+        if save_as or self.currentFileName is None:
             name_filter = "Graph files (*.pygraph)"
             savepath = QFileDialog.getSaveFileName(filter=name_filter)
-            if type(savepath) in [tuple, list]:
+            if isinstance(savepath, (tuple, list)):
                 pth = savepath[0]
             else:
                 pth = savepath
-            if not pth == "":
+            
+            if pth:
                 self.currentFileName = pth
             else:
-                self.currentFileName = None
-        else:
-            if self.currentFileName is None:
-                name_filter = "Graph files (*.pygraph)"
-                savepath = QFileDialog.getSaveFileName(filter=name_filter)
-                if type(savepath) in [tuple, list]:
-                    pth = savepath[0]
-                else:
-                    pth = savepath
-                if not pth == "":
-                    self.currentFileName = pth
-                else:
-                    self.currentFileName = None
+                return False
 
         if not self.currentFileName:
             return False
@@ -414,33 +403,46 @@ class PyFlow(QMainWindow):
         if not self.currentFileName.endswith(".pygraph"):
             self.currentFileName += ".pygraph"
 
-        if not self.currentFileName == "":
-            # Get the current time and format it as a string
-            current_time = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(self.currentFileName), exist_ok=True)
 
-            tempFileName = self.currentFileName.replace(".pygraph", "") + f"-tempfile-{current_time}.pygraph"
+        # Get the current time and format it as a string
+        current_time = datetime.now().strftime("%Y-%m-%d_%H_%M_%S")
 
+        tempFileName = self.currentFileName.replace(".pygraph", "") + f"-tempfile-{current_time}.pygraph"
+
+        try:
             # Open the temp file in 'w+' mode and the target file in 'w' mode
-            with open(tempFileName, "w+") as tempPtr, open(self.currentFileName, "r+") as filePtr:
+            with open(tempFileName, "w") as tempPtr:
+                saveData = self.graphManager.get().serialize()
+                json.dump(saveData, tempPtr, indent=4)
+            
+            # Move the file pointer to the beginning of the temp file before reading
+            with open(tempFileName, "r") as tempPtr, open(self.currentFileName, "w") as filePtr:
+                filePtr.write(tempPtr.read())
+            
+            print(f"// saved: '{self.currentFileName}'")
+            
+            # If everything goes well, delete the temp file
+            try:
+                os.remove(tempFileName)
+            except PermissionError as e:
+                print(f"Warning: Could not remove temporary file {tempFileName}: {e}")
+                # Optionally, you can add a retry mechanism here
+                # For example, wait for a short period and try again
+                import time
+                time.sleep(0.5)  # Wait for half a second
                 try:
-                    saveData = self.graphManager.get().serialize()
-                    json.dump(saveData, tempPtr, indent=4)
-                    
-                    # Move the file pointer to the beginning of the temp file before reading
-                    tempPtr.seek(0)
-                    filePtr.write(tempPtr.read())
-                    tempPtr.close()
-                    
-                    # If everything goes well, delete the temp file
                     os.remove(tempFileName)
-                    
-                    print(f"// saved: '{self.currentFileName}'")
-                except Exception as e:
-                    raise RuntimeError(f'JSON serialization failed.\nCould not save file \"{self.currentFileName}\"') from e
+                except PermissionError as e:
+                    print(f"Failed to remove temporary file after retry: {e}")
 
-            self.modified = False
-            self.updateLabel()
-            return True
+        except Exception as e:
+            raise RuntimeError(f'JSON serialization failed.\nCould not save file \"{self.currentFileName}\"') from e
+
+        self.modified = False
+        self.updateLabel()
+        return True
 
     def _clickNewFile(self):
         shouldSave = self.shouldSave()
