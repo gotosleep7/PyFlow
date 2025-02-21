@@ -106,7 +106,7 @@ class BlueprintCanvas(CanvasBase):
         self.hoverItems = []
         self.hoveredReroutes = []
 
-        self.realTimeLine = QGraphicsPathItem(None, self.scene())
+        self.realTimeLine = QGraphicsPathItem()
         self.realTimeLine.name = "RealTimeLine"
         self.realTimeLineInvalidPen = QtGui.QPen(
             self._realTimeLineInvalidPen, 2.0, QtCore.Qt.SolidLine
