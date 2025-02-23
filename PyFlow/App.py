@@ -165,6 +165,13 @@ class PyFlow(QMainWindow):
             # create app folder in documents
             # random string used for cases when multiple instances of app are running in the same time
             tempDirPath = ConfigManager().getPrefsValue("PREFS", "General/TempFilesDir")
+            
+            # Log the value of tempDirPath for debugging
+            print(f"Temp files directory from config: {tempDirPath}")
+
+            # Provide a default path if tempDirPath is None or empty
+            if not tempDirPath:
+                tempDirPath = os.path.join(os.path.expanduser("~"), "Documents", "PyFlowTemp")
             if tempDirPath[-1:] in ("/", "\\"):
                 tempDirPath = tempDirPath[:-1]
             self.currentTempDir = "{0}_{1}".format(tempDirPath, generateRandomString())
