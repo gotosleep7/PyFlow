@@ -194,26 +194,34 @@ class UIPythonNode(UINodeBase):
         super(UIPythonNode, self).kill()
 
     def onEdit(self):
+        # 获取编辑器命令
         editCmd = ConfigManager().getPrefsValue("PREFS", "General/EditorCmd")
+        
+        # Log the value of editCmd for debugging
+        print(f"Editor command from config: {editCmd}")
+
+        # Provide a default editor command if editCmd is None or empty
+        if not editCmd:
+            editCmd = "notepad.exe @FILE"  # Default to Windows Notepad, change as needed
+
         tempFilesDir = self.canvasRef().getApp().getTempDirectory()
 
         if self._filePath == "":
-            # if no file associated - create one
+            # If no file associated - create one
             uidStr = str(self.uid).replace("-", "")
             self._filePath = os.path.join(tempFilesDir, "{}.py".format(uidStr))
 
         if not os.path.exists(self._filePath):
-            f = open(self._filePath, "w")
-            if self.nodeData == "":
-                f.write(INITIAL_CODE)
-            else:
-                f.write(self.nodeData)
-            f.close()
+            with open(self._filePath, "w") as f:
+                if self.nodeData == "":
+                    f.write(INITIAL_CODE)
+                else:
+                    f.write(self.nodeData)
 
         filePathString = '"{}"'.format(self._filePath)
         editCmd = editCmd.replace("@FILE", filePathString)
 
-        # create file watcher
+        # Create file watcher
         if UIPythonNode.watcher is None:
             UIPythonNode.watcher = QtCore.QFileSystemWatcher()
         if self._filePath not in UIPythonNode.watcher.files():
@@ -221,9 +229,9 @@ class UIPythonNode(UINodeBase):
 
         try:
             UIPythonNode.watcher.fileChanged.disconnect(self.onFileChanged)
-        except:
+        except TypeError:
             pass
 
-        result = UIPythonNode.watcher.fileChanged.connect(self.onFileChanged)
+        UIPythonNode.watcher.fileChanged.connect(self.onFileChanged)
         self.currentEditorProcess = subprocess.Popen(editCmd, shell=True)
         self.fileHandle = open(self._filePath, "r")
